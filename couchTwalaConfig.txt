@@ -1,0 +1,9 @@
+!Specific Options
+<<option txtCouchTwaLaServer>> Server Address & port
+<<option txtCouchTwaLaDbName>> Database Name 
+<<option txtCouchTwaLaPageName>> Master Page Name
+<<option txtCouchTwaLaAttachName>> Attachment Name
+<<option chkCouchTwaLaCreateBackup>> Create backup Record ?
+<<option txtCouchTwaLaBackupPattern>> Backup Tail pattern
+!Proceed
+<<CouchTwaLa>>

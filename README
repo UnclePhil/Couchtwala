@@ -1,0 +1,16 @@
+CouchTwala
+==========
+Simple french joke
+
+if you put this TiddlyWiki plugin in a .... plain vanilla tw, 
+and create the associated config tiddler
+You can save it in an existing couchdb base like any other server-side solution
+
+The entire Tw is saved as attachment of a couch document.
+The tw is always saved with the same name, and a backup can be create every time following the save pattern
+
+Try it use and abuse it
+
+Ph Koenig
+aka UnclePhil
+

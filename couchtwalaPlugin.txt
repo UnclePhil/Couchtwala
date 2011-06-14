@@ -1,0 +1,241 @@
+/***
+|''Name:''|CouchTwaLaPlugin|
+|''Description:''|Save to CouchDb server|
+|''Why this name:''|Just a joke, but only French speaking people can understand it|
+|''Version:''|0.0.1|
+|''Date:''|2010-06-01|
+|''Based on:''|http://tiddlywiki.bidix.info/#UploadPlugin|
+|''Documentation:''|http://blog.unclephil.net|
+|''Author:''|Unclephil|
+|''License:''|[[BSD open source license|http://tiddlywiki.bidix.info/#%5B%5BBSD%20open%20source%20license%5D%5D ]]|
+|''~CoreVersion:''|2.5.0|
+
+***/
+//{{{
+    //slurped from http://www.tiddlytools.com/#AttachFilePlugin
+	function encodeBase64(d) {
+		if (!d) return null;
+		// encode as base64
+		var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+		var out="";
+		var chr1,chr2,chr3="";
+		var enc1,enc2,enc3,enc4="";
+		for (var count=0,i=0; i<d.length; ) {
+			chr1=d.charCodeAt(i++);
+			chr2=d.charCodeAt(i++);
+			chr3=d.charCodeAt(i++);
+			enc1=chr1 >> 2;
+			enc2=((chr1 & 3) << 4) | (chr2 >> 4);
+			enc3=((chr2 & 15) << 2) | (chr3 >> 6);
+			enc4=chr3 & 63;
+			if (isNaN(chr2)) enc3=enc4=64;
+			else if (isNaN(chr3)) enc4=64;
+			out+=keyStr.charAt(enc1)+keyStr.charAt(enc2)+keyStr.charAt(enc3)+keyStr.charAt(enc4);
+			chr1=chr2=chr3=enc1=enc2=enc3=enc4="";
+		}
+		return out;
+	};
+
+    // read local BINARY file data
+	//slurped from http://www.tiddlytools.com/#AttachFilePlugin
+	function readfile(filePath) {
+		if(!window.Components) { return null; }
+		try { netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect"); }
+		catch(e) { alert("access denied: "+filePath); return null; }
+		var file = Components.classes["@mozilla.org/file/local;1"].createInstance(Components.interfaces.nsILocalFile);
+		try { file.initWithPath(filePath); } catch(e) { alert("cannot read file - invalid path: "+filePath); return null; }
+		if (!file.exists()) { alert("cannot read file - not found: "+filePath); return null; }
+		var inputStream = Components.classes["@mozilla.org/network/file-input-stream;1"].createInstance(Components.interfaces.nsIFileInputStream);
+		inputStream.init(file, 0x01, 00004, null);
+		var bInputStream = Components.classes["@mozilla.org/binaryinputstream;1"].createInstance(Components.interfaces.nsIBinaryInputStream);
+		bInputStream.setInputStream(inputStream);
+		return(bInputStream.readBytes(inputStream.available()));
+	};
+
+//couch db function
+
+	function couchExist(xurl){
+	    var rt=null;
+		ajaxReq({
+			type: "Get",
+			url: xurl,
+			async: false,
+			dataType: "json",
+			success: function(data, status, xhr) { rt=data;},
+			error: function() {rt=null;}
+		})		
+		return rt
+	};
+	function couchSave(xurl, xdata){
+		var rt=false;
+		ajaxReq({
+			type: "PUT",
+			async: false,
+			url: xurl,
+			dataType: "json",
+			data: xdata,
+			success: function() {
+				rt=true;
+				},
+			error: function() {
+				rt=false;
+				}
+		});
+		return rt
+	};
+	// this is a non standard request type, but allowed in couchdb
+	function couchCopy(xurl, xdest){
+		var rt=false;
+		ajaxReq({
+			type: "COPY",
+			beforeSend: function(xhr) {xhr.setRequestHeader('Destination', xdest);},
+			async: false,
+			url: xurl,
+			dataType: "json",
+			success: function() {
+				rt=true;
+				},
+			error: function() {
+				rt=false;
+				}
+		});
+		return rt
+	};
+	function couchDelete(xurl){
+		var rt=false;
+		ajaxReq({
+			type: "DELETE",
+			async: false,
+			url: xurl,
+			dataType: "json",
+			success: function() {
+				rt=true;
+				},
+			error: function() {
+				rt=false;
+				}
+		});
+		return rt
+	};
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+version.extensions.CouchTwaLaPlugin = {
+	major: 0, minor: 0, revision: 1,
+	date: '2010/06/01',
+	source: 'http://blog.unclephil.net/',
+	author: 'UnclePhil (unclephil (at) unclephil (dot) net',
+	coreVersion: '2.5.0'
+};
+
+
+// Configuration
+
+if (config.options.txtCouchTwaLaServer==undefined)
+	config.options.txtCouchTwaLaServer='http://127.0.0.1:5984';
+if (config.options.txtCouchTwaLaDbName==undefined)
+	config.options.txtCouchTwaLaDbName='couchtwala';
+if (config.options.txtCouchTwaLaPageName==undefined)
+	config.options.txtCouchTwaLaPageName='MyTw';
+if (config.options.txtCouchTwaLaAttachName==undefined)
+	config.options.txtCouchTwaLaAttachName='index.html';
+if (config.options.chkCouchTwaLaCreateBackup==undefined)
+	config.options.chkCouchTwaLaCreateBackup=false;
+if (config.options.txtCouchTwaLaBackupPattern==undefined)
+	config.options.txtCouchTwaLaBackupPattern='YYYY0MM0DD-0hh0mm0ss';
+
+//
+// Upload Macro
+//
+
+config.macros.CouchTwaLa = {};
+
+config.macros.CouchTwaLa.label = {
+	promptOption: "Save to CouchDb",
+	promptParamMacro: "Save and Upload this TiddlyWiki in %0",
+	saveLabel: "save to couchdb", 
+	saveToDisk: "save to disk",
+	uploadLabel: "upload to couchDb"	
+};
+
+config.macros.CouchTwaLa.messages = {
+	noStoreUrl: "No store URL in parmeters or options",
+	usernameOrPasswordMissing: "Username or password missing"
+};
+
+//display button
+config.macros.CouchTwaLa.handler = function(place,macroName,params) {
+	if (readOnly)
+		return;
+	var label;
+	if (document.location.toString().substr(0,4) == "http") 
+		label = this.label.saveLabel;
+	else
+		label = this.label.uploadLabel;
+	var prompt;
+	if (params[0]) {
+		prompt = this.label.promptParamMacro.toString().format([this.destFile(params[0], 
+			(params[1] ? params[1]:bidix.basename(window.location.toString())), params[3])]);
+	} else {
+		prompt = this.label.promptOption;
+	}
+	createTiddlyButton(place, label, prompt, function() {config.macros.CouchTwaLa.action(params);}, null, null, this.accessKey);
+};
+
+//
+// main working process
+config.macros.CouchTwaLa.action = function(params)
+{
+        var url = config.options.txtCouchTwaLaServer+'/'+config.options.txtCouchTwaLaDbName+'/'+config.options.txtCouchTwaLaPageName;
+		var href = url + config.options.txtCouchTwaLaAttachName
+        var doctitle = document.title;
+        clearMessage();
+		// save change before upload of the file
+		saveChanges();	
+		// get file content 
+		originalPath = document.location.toString();
+		fname = getLocalPath(originalPath);
+		str= readfile(fname);
+		//encode file content to base64
+		var page = config.options.txtCouchTwaLaPageName;
+		var attach = config.options.txtCouchTwaLaAttachName ;
+		var dt64 = encodeBase64(str);
+		var xtime = new Date();
+		var dt ={};
+		//check if record exist
+		var rtdata = couchExist(url);
+		if (rtdata==null) {
+			dt = '{"Title":"'+doctitle+'","Type":"TWCouch","Create_at":"'+xtime.convertToYYYYMMDDHHMM()+'","Modified_at":"'+xtime.convertToYYYYMMDDHHMM()+'","_attachments":{"'+attach+'":{"content_type":"text\/html","data":"'+dt64+'"}}}';
+		}
+		else {
+			//save backup
+			if (config.options.chkCouchTwaLaCreateBackup==true){
+			
+				bkp = config.options.txtCouchTwaLaPageName+"-"+xtime.formatString(config.options.txtCouchTwaLaBackupPattern);
+				//bkp = this.config.options.txtCouchTwaLaPageName+"-"+xtime.formatString(config.options.txtCouchTwaLaBackupPattern);
+				if (couchCopy(url, bkp)) {
+					displayMessage("Backup saved to couchDb");
+				}
+				else {
+					displayMessage("ERROR:Backup NOT saved to couchDb");
+				}
+			}
+			dt = '{"_rev":"'+rtdata._rev+'","Title":"'+doctitle+'","Type":"TWCouch","Create_at":"'+rtdata.Create_at+'","Modified_at":"'+xtime.convertToYYYYMMDDHHMM()+'","_attachments":{"'+attach+'":{"content_type":"text\/html","data":"'+dt64+'"}}}';
+		}
+
+		if (couchSave(url, dt)) {
+			displayMessage("Record saved to couchDb");
+		}
+		else {
+			displayMessage("ERROR:Record NOT saved to couchDb");
+		}
+			
+};
+// Backstage
+merge(config.tasks,{
+	uploadOptions: {text: "couchIt", tooltip: "Save this file To couchDb", content: '<<CouchTwaLa>>'}
+});
+config.backstageTasks.push("uploadOptions");
+
+//}}}
+
